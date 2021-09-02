@@ -1137,9 +1137,10 @@ void Application::initializeServer()
 	//初始化本地Log
 	cout << OUT_LINE << "\n" << TC_Common::outfill("[set roll logger] ") << "OK" << endl;
 	LocalRollLogger::getInstance()->setLogInfo(ServerConfig::Application, ServerConfig::ServerName, ServerConfig::LogPath, ServerConfig::LogSize, ServerConfig::LogNum, _communicator, ServerConfig::Log);
-	_epollServer->setLocalLogger(LocalRollLogger::getInstance()->logger());
 
     _epollServer = new TC_EpollServer(ServerConfig::NetThread);
+	_epollServer->setLocalLogger(LocalRollLogger::getInstance()->logger());
+
 
     _epollServer->setOnAccept(std::bind(&Application::onAccept, this, std::placeholders::_1));
 

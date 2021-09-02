@@ -25,6 +25,18 @@ using namespace std;
 namespace tars
 {
 
+	void CommunicatorEpoll::debug(const string& s) const
+	{
+		if (_pLocalLogger)
+		{
+			_pLocalLogger->debug() << "[TARS]" << s << " this:" << this << endl;
+		}
+		else
+		{
+			std::cout << " no local logger this:" << this << endl;
+		}
+	}
+
 CommunicatorEpoll::CommunicatorEpoll(Communicator * pCommunicator,size_t netThreadSeq)
 : _communicator(pCommunicator)
 , _terminate(false)
@@ -43,6 +55,11 @@ CommunicatorEpoll::CommunicatorEpoll(Communicator * pCommunicator,size_t netThre
 
 	TLOGTARS("[CommunicatorEpoll::CommunicatorEpoll _ep epolller create fd:" << _ep.getFd() << endl);
 	TLOGTARS("[CommunicatorEpoll::CommunicatorEpoll fd:" << _terminateFDInfo.notify.notifyFd() << endl);
+    _pLocalLogger = LocalRollLogger::getInstance()->logger();
+    
+        debug("CommunicatorEpoll::CommunicatorEpoll create epoll fd:" + TC_Common::tostr(_ep.getFd()));
+        debug("CommunicatorEpoll::CommunicatorEpoll  fd:" + TC_Common::tostr(_terminateFDInfo.notify.notifyFd()));
+   
 
     //ObjectProxyFactory 对象
     _objectProxyFactory = new ObjectProxyFactory(this);

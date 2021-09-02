@@ -22,6 +22,8 @@
 #include <cassert>
 #include <iostream>
 
+#include "servant/RemoteLogger.h"
+
 
 //#define FILE_FUNC_LINE          "[" << __FILE__ << "::" << __FUNCTION__ << "::" << __LINE__ << "]" 
 //#define LOG_CONSOLE cout << this_thread::get_id() <<"|"<< TC_Common::now2str()<< FILE_FUNC_LINE << "|"
@@ -1942,7 +1944,7 @@ TC_EpollServer::TC_EpollServer(unsigned int iNetThreadNum)
     {
         _netThreadNum = 15;
     }
-
+    _pLocalLogger = LocalRollLogger::getInstance()->logger();
     cout << "TC_EpollServer::TC_EpollServer==========" << endl;
     //_pLocalLogger = LocalRollLogger::getInstance()->logger();
 

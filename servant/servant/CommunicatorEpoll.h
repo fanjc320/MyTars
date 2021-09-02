@@ -85,7 +85,7 @@ struct UpdateListInfo
 class CommunicatorEpoll : public TC_Thread ,public TC_ThreadRecMutex
 {
 public:
-
+    void debug(const string& s) const;
     /**
      * 构造函数
      */
@@ -249,6 +249,7 @@ protected:
     void reConnect();
 
 protected:
+    RollWrapperInterface* _pLocalLogger;
     /*
      * 通信器
      */
