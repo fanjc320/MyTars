@@ -577,128 +577,47 @@ void ServantHandle::handle(const shared_ptr<TC_EpollServer::RecvContext> &data)
     }
 }
 
-
-#ifdef TARS_OPENTRACKING
-void ServantHandle::processTracking(const TarsCurrentPtr &current)
-{
-    if(!(Application::getCommunicator()->_traceManager))
-    {
-        return;
-    }
-    ServantProxyThreadData * sptd = ServantProxyThreadData::getData();
-    assert(sptd);
-
-    if(!sptd)
-    {
-        return;
-    }
-
-    //提取packet中的span信息，更新为被调的span信息后设置到sptd->_trackInfoMap;
-    sptd->_trackInfoMap.clear();
-    
-    if (IS_MSG_TYPE(current->getMessageType(), tars::TARSMESSAGETYPETRACK))
-    {
-        map<string, string>::const_iterator trackinfoIter = current->getRequestStatus().find(ServantProxy::STATUS_TRACK_KEY);
-        TLOGTARS("[TARS] servant got a tracking request, message_type set" << current->getMessageType() << endl);
-        if (trackinfoIter != current->getRequestStatus().end())
-        {
-            TLOGTARS("[TARS] servant got a tracking request, tracking key:" << trackinfoIter->second << endl);
-            string context = trackinfoIter->second;
-            char szBuffer[context.size() + 1];
-            memset(szBuffer, 0x00, context.size() + 1);
-            memcpy(szBuffer, context.c_str(), context.size());
-            
-            std::unordered_map<std::string, std::string> text_map;
-            write_span_context(text_map, szBuffer);
-
-            TextMapCarrier carrier(text_map);
-            auto tracer = Application::getCommunicator()->_traceManager->_tracer;
-            auto span_context_maybe = tracer->Extract(carrier);
-            if(!span_context_maybe)
-            {
-                //error
-                TLOGERROR("[TARS] servant got a tracking request, but extract the span context fail");
-                return ;
-            }
-
-            string funcName = current->getFuncName();
-            auto child_span = tracer->StartSpan(funcName, {opentracing::ChildOf(span_context_maybe->get())});
-            
-            //text_map.clear();
-            auto err = tracer->Inject(child_span->context(), carrier);
-            assert(err);
-
-            sptd->_trackInfoMap = text_map;
-
-            _spanMap[current->getRequestId()].reset(child_span.release());
-
-            return ;
-
-        }
-    }
-
-    return ;
-
-}
-
-
-void ServantHandle::finishTracking(int ret, const TarsCurrentPtr &current)
-{
-    int requestId = current->getRequestId();
-    
-    if(_spanMap.find(requestId) != _spanMap.end())
-    {
-        auto spanIter = _spanMap.find(requestId);
-        spanIter->second->SetTag("Retcode", ret);
-        spanIter->second->Finish();
-
-        _spanMap.erase(requestId);
-    }
-}
-
-#endif
-
 bool ServantHandle::processDye(const CurrentPtr &current, string& dyeingKey)
 {
-    //当前线程的线程数据
-    ServantProxyThreadData* sptd = ServantProxyThreadData::getData();
+ //   //当前线程的线程数据
+ //   ServantProxyThreadData* sptd = ServantProxyThreadData::getData();
 
-    if (sptd)
-    {
-        sptd->_dyeingKey = "";
-    }
+ //   if (sptd)
+ //   {
+ //       sptd->_dyeingKey = "";
+ //   }
 
-    //当前请求已经被染色, 需要打印染色日志
-    map<string, string>::const_iterator dyeingIt = current->getRequestStatus().find(ServantProxy::STATUS_DYED_KEY);
+ //   //当前请求已经被染色, 需要打印染色日志
+ //   map<string, string>::const_iterator dyeingIt = current->getRequestStatus().find(ServantProxy::STATUS_DYED_KEY);
 
-    if (IS_MSG_TYPE(current->getMessageType(), tars::TARSMESSAGETYPEDYED))
-    {
-        TLOGTARS("[servant got a dyeing request, message_type set: " << current->getMessageType() << "]" << endl);
+ //   if (IS_MSG_TYPE(current->getMessageType(), tars::TARSMESSAGETYPEDYED))
+ //   {
+ //       TLOGTARS("[servant got a dyeing request, message_type set: " << current->getMessageType() << "]" << endl);
 
-        if (dyeingIt != current->getRequestStatus().end())
-        {
-            TLOGTARS("[servant got a dyeing request, dyeing key: " << dyeingIt->second << "]" << endl);
+ //       if (dyeingIt != current->getRequestStatus().end())
+ //       {
+ //           TLOGTARS("[servant got a dyeing request, dyeing key: " << dyeingIt->second << "]" << endl);
 
-            dyeingKey = dyeingIt->second;
-        }
-        return true;
-    }
+ //           dyeingKey = dyeingIt->second;
+ //       }
+ //       return true;
+ //   }
 
-	//servant已经被染色, 开启染色日志
-	if (_application->getServantHelper()->isDyeing())
-	{
-		map<string, string>::const_iterator dyeingKeyIt = current->getRequestStatus().find(ServantProxy::STATUS_GRID_KEY);
+	////servant已经被染色, 开启染色日志
+	//if (_application->getServantHelper()->isDyeing())
+	//{
+	//	map<string, string>::const_iterator dyeingKeyIt = current->getRequestStatus().find(ServantProxy::STATUS_GRID_KEY);
 
-		if (dyeingKeyIt != current->getRequestStatus().end() &&
-			_application->getServantHelper()->isDyeingReq(dyeingKeyIt->second, current->getServantName(), current->getFuncName()))
-		{
-			TLOGTARS("[TARS] dyeing servant got a dyeing req, key:" << dyeingKeyIt->second << endl);
+	//	if (dyeingKeyIt != current->getRequestStatus().end() &&
+	//		_application->getServantHelper()->isDyeingReq(dyeingKeyIt->second, current->getServantName(), current->getFuncName()))
+	//	{
+	//		TLOGTARS("[TARS] dyeing servant got a dyeing req, key:" << dyeingKeyIt->second << endl);
 
-			dyeingKey = dyeingKeyIt->second;
+	//		dyeingKey = dyeingKeyIt->second;
 
-			return true;
-		}
-	}
+	//		return true;
+	//	}
+	//}
 
     return false;
 }
@@ -706,7 +625,7 @@ bool ServantHandle::processDye(const CurrentPtr &current, string& dyeingKey)
 
 bool ServantHandle::processCookie(const CurrentPtr &current, map<string, string> &cookie)
 {
-	const static string STATUS = "STATUS_";
+	/*const static string STATUS = "STATUS_";
 
 	std::for_each(current->getRequestStatus().begin(), current->getRequestStatus().end(),[&](const map<string, string>::value_type& p){
 		if(p.first.size() > STATUS.size() && TC_Port::strncasecmp(p.first.c_str(), STATUS.c_str(), STATUS.size()) == 0) {
@@ -715,7 +634,8 @@ bool ServantHandle::processCookie(const CurrentPtr &current, map<string, string>
 		cookie.insert(make_pair(p.first, p.second));
 	});
 
-	return !cookie.empty();
+	return !cookie.empty();*/
+    return false;
 }
 
 bool ServantHandle::checkValidSetInvoke(const CurrentPtr &current)
@@ -832,18 +752,11 @@ void ServantHandle::handleTarsProtocol(const CurrentPtr &current)
         current->setCookie(cookie);
     }
 
-#ifdef TARS_OPENTRACKING
-    //处理tracking信息
-    processTracking(current);
-#endif
     auto sit = _servants.find(current->getServantName());
 
     if (sit == _servants.end())
     {
         current->sendResponse(TARSSERVERNOSERVANTERR);
-#ifdef TARS_OPENTRACKING
-        finishTracking(TARSSERVERNOSERVANTERR, current);
-#endif
         return;
     }
 
@@ -896,42 +809,40 @@ void ServantHandle::handleTarsProtocol(const CurrentPtr &current)
     {
         current->sendResponse(ret, response, Current::TARS_STATUS(), sResultDesc);
     }
-#ifdef TARS_OPENTRACKING
-    finishTracking(ret, current);
-#endif
+
 }
 
 void ServantHandle::handleNoTarsProtocol(const TarsCurrentPtr &current)
 {
-    TLOGTARS("[ServantHandle::handleNoTarsProtocol current:"
-        << current->getIp() << "|"
-        << current->getPort() << "|"
-        << current->getServantName() << "]" << endl);
+ //   TLOGTARS("[ServantHandle::handleNoTarsProtocol current:"
+ //       << current->getIp() << "|"
+ //       << current->getPort() << "|"
+ //       << current->getServantName() << "]" << endl);
 
-	auto sit = _servants.find(current->getServantName());
+	//auto sit = _servants.find(current->getServantName());
 
-	assert(sit != _servants.end());
+	//assert(sit != _servants.end());
 
-	vector<char> buffer;
+	//vector<char> buffer;
 
-    try
-    {
-        //业务逻辑处理
-        sit->second->dispatch(current, buffer);
-    }
-    catch(exception &ex)
-    {
-        TLOGERROR("[ServantHandle::handleNoTarsProtocol " << ex.what() << "]" << endl);
-    }
-    catch(...)
-    {
-        TLOGERROR("[ServantHandle::handleNoTarsProtocol unknown error]" << endl);
-    }
+ //   try
+ //   {
+ //       //业务逻辑处理
+ //       sit->second->dispatch(current, buffer);
+ //   }
+ //   catch(exception &ex)
+ //   {
+ //       TLOGERROR("[ServantHandle::handleNoTarsProtocol " << ex.what() << "]" << endl);
+ //   }
+ //   catch(...)
+ //   {
+ //       TLOGERROR("[ServantHandle::handleNoTarsProtocol unknown error]" << endl);
+ //   }
 
-	if (current->isResponse() && !buffer.empty())
-	{
-		current->sendResponse((const char *)(buffer.data()), (uint32_t)buffer.size());
-	}
+	//if (current->isResponse() && !buffer.empty())
+	//{
+	//	current->sendResponse((const char *)(buffer.data()), (uint32_t)buffer.size());
+	//}
 }
 
 ////////////////////////////////////////////////////////////////////////////

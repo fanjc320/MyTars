@@ -25,8 +25,8 @@
 #include "servant/RemoteLogger.h"
 
 
-//#define FILE_FUNC_LINE          "[" << __FILE__ << "::" << __FUNCTION__ << "::" << __LINE__ << "]" 
-//#define LOG_CONSOLE cout << this_thread::get_id() <<"|"<< TC_Common::now2str()<< FILE_FUNC_LINE << "|"
+#define FILE_FUNC_LINE          "[" << __FILE__ << "::" << __FUNCTION__ << "::" << __LINE__ << "]" 
+#define LOG_CONSOLE cout << this_thread::get_id() <<"|"<< TC_Common::now2str()<< FILE_FUNC_LINE << "|"
 
 #if TARGET_PLATFORM_WINDOWS
 #include <WS2tcpip.h>
@@ -39,10 +39,6 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-#endif
-
-#if TARS_SSL
-#include "util/tc_openssl.h"
 #endif
 
 
@@ -691,6 +687,7 @@ TC_EpollServer::Connection::Connection(TC_EpollServer::BindAdapter *pBindAdapter
 
     _iLastRefreshTime = TNOW;
 
+    _pBindAdapter->getEpollServer()->debug("TC_EpollServer::Connection::Connection lfd:" + TC_Common::tostr(lfd) + " fd:" + TC_Common::tostr(fd));
     _sock.init(fd, true, pBindAdapter->_ep.isIPv6() ? AF_INET6 : AF_INET);
 }
 
@@ -711,8 +708,8 @@ TC_EpollServer::Connection::Connection(BindAdapter *pBindAdapter, int fd)
 
 {
     _iLastRefreshTime = TNOW;
-
     _sock.init(fd, false, pBindAdapter->_ep.isIPv6() ? AF_INET6 : AF_INET);
+	_pBindAdapter->getEpollServer()->debug("TC_EpollServer::Connection::Connection  fd:" + TC_Common::tostr(fd));
 }
 
 TC_EpollServer::Connection::~Connection()
@@ -740,14 +737,6 @@ void TC_EpollServer::Connection::tryInitAuthState(int initState)
 
 void TC_EpollServer::Connection::close()
 {
-#if TARS_SSL
-        if (_openssl)
-        {
-            _openssl->release();
-            _openssl.reset();
-        }
-#endif
-
     if (isTcp() && _sock.isValid())
     {
         _pBindAdapter->decreaseSendBufferSize(_sendBuffer.size());
@@ -892,34 +881,7 @@ int TC_EpollServer::Connection::recvTcp()
         }
         else
         {
-
-#if TARS_SSL
-		    if (_pBindAdapter->getEndpoint().isSSL())
-		    {
-			    int ret = _openssl->read(buffer, iBytesReceived, _sendBuffer);
-			    if (ret != 0)
-			    {
-				    _pBindAdapter->getEpollServer()->error("[SSL_read failed: " + _openssl->getErrMsg());
-				    return -1;
-			    }
-			    else
-			    {
-				    if (!_sendBuffer.empty())
-				    {
-					    sendBuffer();
-				    }
-
-				    rbuf = _openssl->recvBuffer();
-			    }
-		    }
-		    else
-		    {
-			    rbuf->addBuffer(buffer, iBytesReceived);
-		    }
-
-#else
             rbuf->addBuffer(buffer, iBytesReceived);
-#endif
 
             //字符串太长时, 强制解析协议
             if (rbuf->getBufferLength() > 8192) {
@@ -945,58 +907,58 @@ int TC_EpollServer::Connection::recvTcp()
 
 int TC_EpollServer::Connection::recvUdp()
 {
-    assert(_pRecvBuffer != NULL);
+    //assert(_pRecvBuffer != NULL);
 
-    int recvCount = 0;
-    while (true)
-    {
-        int iBytesReceived = _sock.recvfrom((void *)_pRecvBuffer, _nRecvBufferSize, _ip, _port, 0);
+    //int recvCount = 0;
+    //while (true)
+    //{
+    //    int iBytesReceived = _sock.recvfrom((void *)_pRecvBuffer, _nRecvBufferSize, _ip, _port, 0);
 
-        if (iBytesReceived < 0)
-        {
-            if (TC_Socket::isPending())//errno == EAGAIN)
-            {
-                //没有数据了
-                break;
-            }
-            else
-            {
-                //客户端主动关闭
-                _pBindAdapter->getEpollServer()->debug("recv [" + _ip + ":" + TC_Common::tostr(_port) + "] close connection");
-                return -1;
-            }
-        }
-        else if (iBytesReceived == 0)
-        {
-            //客户端主动关闭
-            _pBindAdapter->getEpollServer()->debug("recv [" + _ip + ":" + TC_Common::tostr(_port) + "] close connection");
-            return -1;
-        }
-        else
-        {
+    //    if (iBytesReceived < 0)
+    //    {
+    //        if (TC_Socket::isPending())//errno == EAGAIN)
+    //        {
+    //            //没有数据了
+    //            break;
+    //        }
+    //        else
+    //        {
+    //            //客户端主动关闭
+    //            _pBindAdapter->getEpollServer()->debug("recv [" + _ip + ":" + TC_Common::tostr(_port) + "] close connection");
+    //            return -1;
+    //        }
+    //    }
+    //    else if (iBytesReceived == 0)
+    //    {
+    //        //客户端主动关闭
+    //        _pBindAdapter->getEpollServer()->debug("recv [" + _ip + ":" + TC_Common::tostr(_port) + "] close connection");
+    //        return -1;
+    //    }
+    //    else
+    //    {
 
-            if (_pBindAdapter->isIpAllow(_ip) == true)
-            {
-                //保存接收到数据
-                _recvBuffer.addBuffer(_pRecvBuffer, iBytesReceived);
+    //        if (_pBindAdapter->isIpAllow(_ip) == true)
+    //        {
+    //            //保存接收到数据
+    //            _recvBuffer.addBuffer(_pRecvBuffer, iBytesReceived);
 
-                parseProtocol(_recvBuffer);
-            }
-            else
-            {
-                //udp ip无权限
-                _pBindAdapter->getEpollServer()->debug( "accept [" + _ip + ":" + TC_Common::tostr(_port) + "] [" + TC_Common::tostr(_lfd) + "] not allowed");
-            }
-            _recvBuffer.clearBuffers();
+    //            parseProtocol(_recvBuffer);
+    //        }
+    //        else
+    //        {
+    //            //udp ip无权限
+    //            _pBindAdapter->getEpollServer()->debug( "accept [" + _ip + ":" + TC_Common::tostr(_port) + "] [" + TC_Common::tostr(_lfd) + "] not allowed");
+    //        }
+    //        _recvBuffer.clearBuffers();
 
-            if(++recvCount > 100)
-            {
-                //太多数据要接收,避免网络线程饥饿
-                _pBindAdapter->getNetThreadOfFd(_sock.getfd())->getEpoller()->mod(_sock.getfd(), getId(), EPOLLIN|EPOLLOUT);
-                break;
-            }
-        }
-    }
+    //        if(++recvCount > 100)
+    //        {
+    //            //太多数据要接收,避免网络线程饥饿
+    //            _pBindAdapter->getNetThreadOfFd(_sock.getfd())->getEpoller()->mod(_sock.getfd(), getId(), EPOLLIN|EPOLLOUT);
+    //            break;
+    //        }
+    //    }
+    //}
 
     return 0;
 }
@@ -1032,9 +994,6 @@ int TC_EpollServer::Connection::sendBuffer()
 		{
 			if (TC_Socket::isPending())
 			{
-#if TARGET_PLATFORM_WINDOWS
-	            _pBindAdapter->getNetThreadOfFd(_sock.getfd())->getEpoller()->mod(_sock.getfd(), getId(), EPOLLIN|EPOLLOUT);
-#endif
 				break;
 			}
 			else
@@ -1187,24 +1146,7 @@ int TC_EpollServer::Connection::sendBufferDirect(const std::string& buff)
     
     if(getBindAdapter()->getEndpoint().isTcp())
     {
-#if TAF_SSL
-        if (getBindAdapter()->getEndpoint().isSSL())
-        {
-            //assert(_openssl->isHandshaked());
-            
-            int ret = _openssl->write(buff.c_str(), buff.length(), _sendBuffer);
-            if (ret != 0)
-            {
-                _pBindAdapter->getEpollServer()->error("[TC_EpollServer::Connection] send direct error! " + TC_Common::tostr(ret));
-                return -1; // should not happen
-            }
-    
-        }
-        else
-#endif
-        {
-            _sendBuffer.addBuffer(buff);
-        }
+        _sendBuffer.addBuffer(buff);
 
         return sendBuffer();
     }
@@ -1221,26 +1163,11 @@ int TC_EpollServer::Connection::send(const shared_ptr<SendContext> &sc)
 
 	_pBindAdapter->increaseSendBufferSize();
 
-    if(getBindAdapter()->getEndpoint().isTcp())
-    {
         _pBindAdapter->getEpollServer()->tars("TC_EpollServer::Connection::send addBuffer");
         _sendBuffer.addBuffer(sc->buffer());
 
         return sendBuffer();
-    }
-    else
-    {
-        _pBindAdapter->getEpollServer()->tars("TC_EpollServer::Connection::send _sock.sendto");
-        //注意udp, 回包时需要带上请求包的ip, port的
-		int iRet = _sock.sendto((const void *) sc->buffer()->buffer(), sc->buffer()->length(), sc->ip(), sc->port(), 0);
-        
-        if (iRet < 0)
-        {
-            _pBindAdapter->getEpollServer()->error("[TC_EpollServer::Connection] send udp [" + _ip + ":" + TC_Common::tostr(_port) + "] error");
-            return -1;
-        }
-	}
-    return 0;
+    
 }
 
 bool TC_EpollServer::Connection::setRecvBuffer(size_t nSize)
@@ -1521,8 +1448,11 @@ TC_EpollServer::NetThread::NetThread(TC_EpollServer *epollServer, int threadInde
     _notify.init(&_epoller);
     int nfd = _notify.notifyFd();
     _notify.add(nfd);
-    debug("TC_EpollServer::NetThread::NetThread _epoller create _epoller fd:" + TC_Common::tostr(_epoller.getFd()));
-    debug("TC_EpollServer::NetThread::NetThread nfd:" + TC_Common::tostr(nfd));
+    //debug("TC_EpollServer::NetThread::NetThread _epoller create _epoller fd:" + TC_Common::tostr(_epoller.getFd()));
+    //debug("TC_EpollServer::NetThread::NetThread nfd:" + TC_Common::tostr(nfd));
+
+    _epollServer->_pLocalLogger->debug() << " _epoller create fd:" << _epoller.getFd() << LOG_FJC << endl;
+    _epollServer->_pLocalLogger->debug() << " _notify add fd:" << nfd << LOG_FJC << endl;
 }
 
 TC_EpollServer::NetThread::~NetThread()
@@ -1582,22 +1512,22 @@ void TC_EpollServer::NetThread::createEpoll(uint32_t maxAllConn)
 void TC_EpollServer::NetThread::initUdp(const unordered_map<int, TC_EpollServer::BindAdapterPtr> &listeners)
 {
     //监听socket
-    auto it = listeners.begin();
+    //auto it = listeners.begin();
 
-    while (it != listeners.end())
-    {
-        if (!it->second->getEndpoint().isTcp())
-        {
-            Connection *cPtr = new Connection(it->second.get(), it->first);
-            //udp分配接收buffer
-            cPtr->setRecvBuffer(_nUdpRecvBufferSize);
+    //while (it != listeners.end())
+    //{
+    //    if (!it->second->getEndpoint().isTcp())
+    //    {
+    //        Connection *cPtr = new Connection(it->second.get(), it->first);
+    //        //udp分配接收buffer
+    //        cPtr->setRecvBuffer(_nUdpRecvBufferSize);
 
-            //addUdpConnection(cPtr);
-            _epollServer->addConnection(cPtr, it->first, UDP_CONNECTION);
-        }
+    //        //addUdpConnection(cPtr);
+    //        _epollServer->addConnection(cPtr, it->first, UDP_CONNECTION);
+    //    }
 
-        ++it;
-    }
+    //    ++it;
+    //}
 }
 
 void TC_EpollServer::NetThread::terminate()
@@ -1617,40 +1547,6 @@ void TC_EpollServer::NetThread::addTcpConnection(TC_EpollServer::Connection *cPt
 
     cPtr->getBindAdapter()->increaseNowConnection();
 
-#if TARS_SSL
-    if (cPtr->getBindAdapter()->getEndpoint().isSSL())
-    {
-        cPtr->getBindAdapter()->getEpollServer()->info("[TARS][addTcpConnection ssl connection");
-
-        // 分配ssl对象, ctxName 放在obj proxy里
-        cPtr->_openssl = TC_OpenSSL::newSSL(cPtr->getBindAdapter()->_ctx);
-        if (!cPtr->_openssl)
-        {
-            cPtr->getBindAdapter()->getEpollServer()->error("[TARS][SSL_accept not find server cert");
-	        cPtr->close();
-            return;
-        }
-
-        cPtr->_openssl->recvBuffer()->setConnection(cPtr);
-        cPtr->_openssl->init(true);
-        cPtr->_openssl->setReadBufferSize(1024 * 8);
-        cPtr->_openssl->setWriteBufferSize(1024 * 8);
-
-        int ret = cPtr->_openssl->doHandshake(cPtr->_sendBuffer);
-        if (ret != 0)
-        {
-            cPtr->getBindAdapter()->getEpollServer()->error("[TARS][SSL_accept " + cPtr->getBindAdapter()->getEndpoint().toString() + " error: " + cPtr->_openssl->getErrMsg());
-	        cPtr->close();
-            return;
-        }
-
-        // send the encrypt data from write buffer
-        if (!cPtr->_sendBuffer.empty())
-        {
-            cPtr->sendBuffer();
-        }
-    }
-#endif
     //注意epoll add必须放在最后, 否则可能导致执行完, 才调用上面语句
     _epoller.add(cPtr->getfd(), cPtr->getId(), EPOLLIN | EPOLLOUT);
 
@@ -1659,13 +1555,13 @@ void TC_EpollServer::NetThread::addTcpConnection(TC_EpollServer::Connection *cPt
 
 void TC_EpollServer::NetThread::addUdpConnection(TC_EpollServer::Connection *cPtr)
 {
-    uint32_t uid = _list.getUniqId();
+    /*uint32_t uid = _list.getUniqId();
 
     cPtr->init(uid);
 
     _list.add(cPtr, cPtr->getTimeout() + TNOW);
 
-    _epoller.add(cPtr->getfd(), cPtr->getId(), EPOLLIN | EPOLLOUT);
+    _epoller.add(cPtr->getfd(), cPtr->getId(), EPOLLIN | EPOLLOUT);*/
 }
 
 vector<TC_EpollServer::ConnStatus> TC_EpollServer::NetThread::getConnStatus(int lfd)
@@ -1756,7 +1652,7 @@ void TC_EpollServer::NetThread::send(const shared_ptr<SendContext> &data)
     }
 }
 
-void TC_EpollServer::NetThread::processPipe()
+void TC_EpollServer::NetThread::processPipe()//fjc:处理notify消息
 {
     _notifySignal = false;
 
@@ -1783,16 +1679,8 @@ void TC_EpollServer::NetThread::processPipe()
             case 's':
             {
                 int ret = 0;
-#if TARS_SSL
-                if (cPtr->getBindAdapter()->getEndpoint().isSSL()) {
-                    if (!cPtr->_openssl->isHandshaked()) {
-                        return;
-                    }
-                }
+
                 ret = cPtr->send(sc);
-#else
-                ret = cPtr->send(sc);
-#endif
                 if (ret < 0)
                 {
                     delConnection(cPtr, true, (ret == -1) ? EM_CLIENT_CLOSE : EM_SERVER_CLOSE);
@@ -1898,14 +1786,17 @@ void TC_EpollServer::NetThread::run()
                 const epoll_event &ev = _epoller.get(i);
 
                 uint32_t fd = TC_Epoller::getU32(ev, false);
-                debug("TC_EpollServer::NetThread::run get event from fd :" + TC_Common::tostr(fd) + " notifyfd:" + TC_Common::tostr((uint32_t)_notify.notifyFd()));
+                //debug("TC_EpollServer::NetThread::run get event from fd :" + TC_Common::tostr(fd) + " notifyfd:" + TC_Common::tostr((uint32_t)_notify.notifyFd()));
+                _epollServer->_pLocalLogger->debug() << " get event from fd:" << fd << " _notify fd:" << _notify.notifyFd() << LOG_FJC << endl;
                 if (fd == (uint32_t)_notify.notifyFd())
                 {
                     //检查是否是通知消息
+                    debug("TC_EpollServer::NetThread::run  processPipe fd:" + TC_Common::tostr(fd));
                     processPipe();
                 }
                 else
                 {
+                    debug("TC_EpollServer::NetThread::run  processNet fd:" + TC_Common::tostr(fd));
                     processNet(ev);
                 }
             }
@@ -1955,8 +1846,10 @@ TC_EpollServer::TC_EpollServer(unsigned int iNetThreadNum)
     int iNfd = _notify.notifyFd();
     _notify.add(_notify.notifyFd());
 
-    debug("TC_EpollServer _epoller create _epoller fd:" + _epoller.getFd());
-    debug("TC_EpollServer _noitfy add fd:" + iNfd);
+    //debug(" TC_EpollServer _epoller create _epoller fd:" + TC_Common::tostr(_epoller.getFd()));
+    //debug(" TC_EpollServer _noitfy add fd:" + TC_Common::tostr(iNfd));
+    _pLocalLogger->debug() << " _epoller create fd : " << _epoller.getFd() << LOG_FJC << endl;
+    _pLocalLogger->debug() << " _epoller create fd : " << iNfd << LOG_FJC << endl;
 
      for (size_t i = 0; i < _netThreadNum; ++i)
     {
@@ -2009,6 +1902,7 @@ bool TC_EpollServer::accept(int fd, int domain)
 
     s.init(fd, false, domain);
     int iRetCode = s.accept(cs, (struct sockaddr *)stSockAddr, iSockAddrSize);
+    debug("TC_EpollServer::accept cs.fd:" + TC_Common::tostr(cs.getfd()) + " fd:" + TC_Common::tostr(fd));
     if (iRetCode > 0)
     {
         string ip;
@@ -2022,14 +1916,14 @@ bool TC_EpollServer::accept(int fd, int domain)
         
         debug("TC_EpollServer::accept [" + ip + ":" + TC_Common::tostr(port) + "]  csfd:[" + TC_Common::tostr(cs.getfd()) + "] incomming  fd:" + TC_Common::tostr(fd));
 
-        if (!_listeners[fd]->isIpAllow(ip))
-        {
-            debug("accept [" + ip + ":" + TC_Common::tostr(port) + "] [" + TC_Common::tostr(cs.getfd()) + "] not allowed");
+		/* if (!_listeners[fd]->isIpAllow(ip))
+		 {
+			 debug("accept [" + ip + ":" + TC_Common::tostr(port) + "] [" + TC_Common::tostr(cs.getfd()) + "] not allowed");
 
-            cs.close();
+			 cs.close();
 
-            return true;
-        }
+			 return true;
+		 }*/
 
         if (_listeners[fd]->isLimitMaxConnection())
         {
@@ -2188,21 +2082,10 @@ void TC_EpollServer::setEmptyConnTimeout(int timeout)
 
 void TC_EpollServer::bind(const TC_Endpoint &ep, TC_Socket &s, bool manualListen)
 {
-#if TARGET_PLATFORM_WINDOWS
-    int type = ep.isIPv6() ? AF_INET6 : AF_INET;
-#else
+
     int type = ep.isUnixLocal() ? AF_LOCAL : ep.isIPv6() ? AF_INET6 : AF_INET;
-#endif
 
-    if (ep.isTcp())
-    {
-        s.createSocket(SOCK_STREAM | SOCK_CLOEXEC, type);
-    }
-    else
-    {
-        s.createSocket(SOCK_DGRAM | SOCK_CLOEXEC, type);
-    }
-
+    s.createSocket(SOCK_STREAM | SOCK_CLOEXEC, type);
 
     if (ep.isUnixLocal())
     {
@@ -2249,7 +2132,9 @@ int TC_EpollServer::bind(BindAdapterPtr &lsPtr)
     TC_Socket &s = lsPtr->getSocket();
     int iSockId = s.getfd();
     bind(ep, s, lsPtr->isManualListen());
-    iSockId = s.getfd();
+
+    debug("TC_EpollServer::bind sockid:" + TC_Common::tostr(iSockId) + " sock:" + TC_Common::tostr(s.getfd()));
+     
     _listeners[s.getfd()] = lsPtr;
 
     _bindAdapters.push_back(lsPtr);
@@ -2344,7 +2229,8 @@ void TC_EpollServer::createEpoll()
 
             _epoller.add(it->first, it->first, EPOLLIN);
             std::cout << "tc_epollserver createEpoll add fd:" << it->first << " data:" << it->first;
-            debug("tc_epollserver createEpoll add fd:" + TC_Common::tostr(it->first) + " data:" + TC_Common::tostr(it->first));
+            //debug("tc_epollserver createEpoll add fd:" + TC_Common::tostr(it->first) + " data:" + TC_Common::tostr(it->first));
+            _pLocalLogger->debug() << " _epoller add fd:" << TC_Common::tostr(it->first) << LOG_FJC << endl;
         }
         else
         {
@@ -2403,7 +2289,7 @@ void TC_EpollServer::close(const shared_ptr<TC_EpollServer::RecvContext> &data)
 void TC_EpollServer::send(const shared_ptr<SendContext> &data)
 {
     std::cout << "tc_epollserver send fd:" << data->fd();
-    debug("tc_epollserver send fd:" + TC_Common::tostr(data->fd()));
+    _pLocalLogger->debug() << "send fd:" << TC_Common::tostr(data->fd()) << LOG_FJC << endl;
     TC_EpollServer::NetThread *netThread = getNetThreadOfFd(data->fd());
 
     netThread->send(data);
@@ -2413,7 +2299,7 @@ void TC_EpollServer::debug(const string &s) const
 {
     if(_pLocalLogger)
     {
-        _pLocalLogger->debug() << "[TARS]" << s << " this:" << this << endl;
+		_pLocalLogger->debug() << "[TARS]" << s << endl;
     }
     else
     {

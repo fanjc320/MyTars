@@ -42,6 +42,10 @@
 #include <sys/syscall.h>
 #endif
 
+#define FILE_FUNC_LINE_FJC          "[" << __FILE__ << "::" << __FUNCTION__ << "::" << __LINE__ << "]" 
+//#define LOG_FJC " threadid:" << this_thread::get_id() <<"|"<< TC_Common::now2str()<< FILE_FUNC_LINE_FJC << "|"
+#define LOG_FJC " threadid:" << this_thread::get_id() <<"|" << FILE_FUNC_LINE_FJC << "|"
+
 using namespace std;
 namespace tars
 {

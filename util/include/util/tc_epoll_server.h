@@ -2051,7 +2051,7 @@ public:
      * Constructor
      */
     TC_EpollServer(unsigned int iNetThreadNum = 1);
-
+    RollWrapperInterface* _pLocalLogger;
     /**
      * 析构函数
      * Destructor
@@ -2350,7 +2350,7 @@ private:
      * 本地循环日志
      * Local Loop Log
      */
-    RollWrapperInterface        *_pLocalLogger;
+    
 
 	/**
 	 *

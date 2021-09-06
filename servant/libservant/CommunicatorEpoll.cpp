@@ -57,8 +57,11 @@ CommunicatorEpoll::CommunicatorEpoll(Communicator * pCommunicator,size_t netThre
 	TLOGTARS("[CommunicatorEpoll::CommunicatorEpoll fd:" << _terminateFDInfo.notify.notifyFd() << endl);
     _pLocalLogger = LocalRollLogger::getInstance()->logger();
     
-        debug("CommunicatorEpoll::CommunicatorEpoll create epoll fd:" + TC_Common::tostr(_ep.getFd()));
-        debug("CommunicatorEpoll::CommunicatorEpoll  fd:" + TC_Common::tostr(_terminateFDInfo.notify.notifyFd()));
+        //debug("CommunicatorEpoll::CommunicatorEpoll create epoll fd:" + TC_Common::tostr(_ep.getFd()));
+        //debug("CommunicatorEpoll::CommunicatorEpoll  fd:" + TC_Common::tostr(_terminateFDInfo.notify.notifyFd()));
+
+    _pLocalLogger->debug() << " _epoller create fd:" << TC_Common::tostr(_ep.getFd()) << LOG_FJC << endl;
+    _pLocalLogger->debug() << " _terminateFDInfo.notify.add fd:" << TC_Common::tostr(_terminateFDInfo.notify.notifyFd()) << LOG_FJC << endl;
    
 
     //ObjectProxyFactory 对象
@@ -589,7 +592,7 @@ void CommunicatorEpoll::run()
                 if(data == 0) continue; //data非指针, 退出循环
 
 //	            int64_t ms = TNOWMS;
-
+                debug("CommunicatorEpoll run get event from:" + TC_Common::tostr(_ep.getFd()));
                 handle((FDInfo*)data, ev);
             }
 

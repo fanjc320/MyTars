@@ -138,7 +138,7 @@ public:
 	{
 		try
 		{
-			cout << "SocketHandle::handle : " << data->ip() << ":" << data->port() << endl;
+			cout << "SocketHandle::handle : " << data->ip() << ":" << data->port() << " fd:" << data->fd() << endl;
 
 			shared_ptr<TC_EpollServer::SendContext> send = data->createSendContext();
 			send->buffer()->setBuffer(data->buffer());

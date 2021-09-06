@@ -14,6 +14,7 @@
  * specific language governing permissions and limitations under the License.
  */
 #include "util/tc_epoller.h"
+#include "servant/RemoteLogger.h"
 #if TARGET_PLATFORM_WINDOWS
 #include "sys/epoll.h"
 #else
@@ -25,6 +26,7 @@ namespace tars
 
 TC_Epoller::NotifyInfo::NotifyInfo() : _ep(NULL)
 {
+    _pLocalLogger = LocalRollLogger::getInstance()->logger();
 }
 
 TC_Epoller::NotifyInfo::~NotifyInfo()
@@ -42,7 +44,9 @@ void TC_Epoller::NotifyInfo::init(TC_Epoller *ep)
 void TC_Epoller::NotifyInfo::add(uint64_t data)
 {
     _data = data;
+    int fd = _notify.getfd();
     _ep->add(_notify.getfd(), data, EPOLLIN | EPOLLOUT);
+    //_pLocalLogger->debug() << "----------------------------------------------------------------TC_Epoller::NotifyInfo::add fd:" << fd << endl;
 }
 
 void TC_Epoller::NotifyInfo::notify()
@@ -69,6 +73,7 @@ TC_Epoller::TC_Epoller()
 
 	_pevs     = nullptr;
 	_max_connections = 1024;
+    _pLocalLogger = LocalRollLogger::getInstance()->logger();
 }
 
 TC_Epoller::~TC_Epoller()
@@ -106,7 +111,8 @@ int TC_Epoller::ctrl(SOCKET_TYPE fd, uint64_t data, uint32_t events, int op)
 void TC_Epoller::create(int size)
 {
 	_iEpollfd = epoll_create(size);
-
+    //_pLocalLogger->debug() << "---------------------------------------------TC_Epoller::create fd:" << _iEpollfd << endl;
+    _pLocalLogger->debug() << "-------------------------- create fd:" << TC_Common::tostr(_iEpollfd) << LOG_FJC << endl;
     if (nullptr != _pevs)
     {
         delete[] _pevs;
@@ -129,6 +135,8 @@ void TC_Epoller::close()
 
 int TC_Epoller::add(SOCKET_TYPE fd, uint64_t data, int32_t event)
 {
+    //_pLocalLogger->debug() << "---------------------------------------------TC_Epoller::add fd:" << fd << endl;
+    _pLocalLogger->debug() << "-------------------------- add fd:" << TC_Common::tostr(_iEpollfd) << LOG_FJC << endl;
     return ctrl(fd, data, event, EPOLL_CTL_ADD);
 }
 
@@ -144,7 +152,7 @@ int TC_Epoller::del(SOCKET_TYPE fd, uint64_t data, int32_t event)
 
 epoll_event& TC_Epoller::get(int i) 
 { 
-	assert(_pevs != 0); 
+	//assert(_pevs != 0); 
 	return _pevs[i]; 
 }
 

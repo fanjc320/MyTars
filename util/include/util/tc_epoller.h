@@ -19,6 +19,7 @@
 
 #include "util/tc_platform.h"
 #include "util/tc_socket.h"
+#include "util/tc_logger.h"
 #include <cassert>
 
 #if TARGET_PLATFORM_IOS
@@ -70,7 +71,7 @@ public:
 	public:
         NotifyInfo();
 		~NotifyInfo();
-
+		RollWrapperInterface* _pLocalLogger;
 		/**
 		 * 初始化
 		 * Initialization
@@ -252,7 +253,7 @@ public:
 		return _iEpollfd;
 	}
 
-
+	RollWrapperInterface* _pLocalLogger;
 
 protected:
 
